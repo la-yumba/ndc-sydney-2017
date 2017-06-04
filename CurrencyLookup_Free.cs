@@ -1,9 +1,8 @@
 ﻿using System;
-using System.Collections.Immutable;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using static System.Console;
+
 using LaYumba.Functional;
 using static LaYumba.Functional.F;
 using Unit = System.ValueTuple;
@@ -41,9 +40,9 @@ namespace Dsl
    }
 }
 
-public class CurrencyLookup_Free
+public static class FreeProgram
 {
-   public static void Main_Free() =>
+   public static void Run() =>
       MainF.Run(cmd =>
       {
          switch (cmd)
@@ -56,7 +55,10 @@ public class CurrencyLookup_Free
                return Unit();
 
             case GetRate getRate:
-               return FxApi.GetRate(getRate.CcyPair);
+               WriteLine("fetching rate...");
+               var uri = $"http://finance.yahoo.com/d/quotes.csv?f=l1&s={getRate.CcyPair}=X";
+               var request = new HttpClient().GetStringAsync(uri);
+               return decimal.Parse(request.Result.Trim());
 
             default: 
                throw new Exception("Invalid command");

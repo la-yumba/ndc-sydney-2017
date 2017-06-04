@@ -6,16 +6,16 @@ using LaYumba.Functional;
 
 using System.Reflection;
 
-public static class Program
+public static partial class Program
 {
    public static void Main(string[] args)
    {
       var programs = new Dictionary<string, Action>
       {
-         ["stateless"] = CurrencyLookup.Main_Stateless,
-         ["stateful"] = CurrencyLookup.Main_Stateful,
-         ["fold"] = CurrencyLookup.Main_Fold,
-         ["free"] = CurrencyLookup_Free.Main_Free,
+         ["stateless"] = CurrencyLookup.Stateless,
+         ["stateful"] = CurrencyLookup.Stateful,
+         ["fold"] = CurrencyLookup.Fold,
+         ["free"] = FreeProgram.Run,
       };
 
       if (args.Length > 0)
