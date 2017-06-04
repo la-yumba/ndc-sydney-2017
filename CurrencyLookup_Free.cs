@@ -72,24 +72,26 @@ public class CurrencyLookup_Free
    {
       Free<Unit> done = Free.Return(Unit());
 
-      Free<Unit> retrieveLocally(string ccyPair) =>
-         from _ in Tell(cache[ccyPair].ToString())
-         from __ in MainRec(cache)
-         select _;
-
-      Free<Unit> retrieveRemotely(string ccyPair) =>
+      Free<(decimal Rate, Rates NewState)> retrieveLocally(string ccyPair) =>
+         Free.Return((cache[ccyPair], cache));
+       
+      Free<(decimal Rate, Rates NewState)> retrieveRemotely(string ccyPair) =>
          from rate in GetRate(ccyPair)
-         from _ in Tell(rate.ToString())
-         from __ in MainRec(cache.Add(ccyPair, rate))
+         select (rate, cache.Add(ccyPair, rate));
+
+      Free<Unit> notDone(string ccyPair) =>
+         from t in cache.ContainsKey(ccyPair)
+                   ? retrieveLocally(ccyPair)
+                   : retrieveRemotely(ccyPair) 
+         from _  in Tell(t.Rate.ToString())
+         from __ in MainRec(t.NewState)
          select _;
 
       return 
          from input in Ask()
          from _ in (input == "Q")
             ? done
-            : cache.ContainsKey(input)
-               ? retrieveLocally(input)
-               : retrieveRemotely(input)
+            : notDone(input)
          select _;
    }
 }

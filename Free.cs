@@ -1,7 +1,10 @@
 using System;
+using System.Threading.Tasks;
 
 namespace LaYumba.Functional
 {
+   using static F;
+
    // free case classes
    public abstract class Free<T>
    {
@@ -33,8 +36,10 @@ namespace LaYumba.Functional
 
    public static class Free
    {
+      // Lifts a T into a Free<T> that has the given T as its inner value
       public static Free<T> Return<T>(T t) => Done(t);
 
+      // Runs a Free<T> with the given interpreter, returning a T
       public static T Run<T>
          (this Free<T> free, Func<object, dynamic> interpret)
          => free.Match(
@@ -42,8 +47,15 @@ namespace LaYumba.Functional
             More: coyo => Run(coyo.Func(interpret(coyo.Value)), interpret)
          );
 
-      /// Lift a StdOut into a FreeStdOut
-      /// you can think of this as lifting a single instruction into a program.
+      // Runs a Free<T> with the given asynchronous interpreter, returning a Task<T>
+      public static Task<T> Run<T>
+         (this Free<T> free, Func<object, Task<dynamic>> interpret)
+         => free.Match<Task<T>>(
+            Done: t => Async(t),
+            More: async coyo => Run(coyo.Func(await interpret(coyo.Value)), interpret)
+         );
+
+      /// Lifts a single instruction into a program.
       /// Given an instruction such as: 
       /// 
       /// Ask( Prompt: "What's your age?" )
@@ -52,7 +64,7 @@ namespace LaYumba.Functional
       /// 
       /// Coyo(
       ///    Value: Ask ( Prompt: "What's your age?" ),
-      ///    Func: age => age
+      ///    Func: age => age // where `age` is the value that will be returned by running the Ask
       /// )
       /// 
       /// and then a program such as:
@@ -65,7 +77,7 @@ namespace LaYumba.Functional
       ///       )
       ///    )
       /// )
-      internal static Free<T> Of<T>(object op)
+      public static Free<T> Of<T>(object op)
          => More(Coyo.Of<object, T>(op).Map(t => Done<T>(t)));
 
       static Free<T> Done<T>(T t) => new Done<T>(t);
