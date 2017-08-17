@@ -8,62 +8,70 @@ using static LaYumba.Functional.F;
 using Unit = System.ValueTuple;
 
 using Rates = System.Collections.Immutable.ImmutableDictionary<string, decimal>;
-using Dsl;
-using static Dsl.Factory;
+using static Dsl.StdOut.Factory;
+using static Dsl.Http.Factory;
 
 namespace Dsl
 {
-   class Ask {}
-
-   class Tell
+   namespace StdOut
    {
-      public string Message { get; }
-      public Tell(string message) => Message = message;
+      class Ask {}
+
+      class Tell
+      {
+         public string Message { get; }
+         public Tell(string message) => Message = message;
+      }
+      
+      static class Factory
+      {
+         public static Free<string> Ask()
+            => Free.Of<string>(new Ask());
+
+         public static Free<Unit> Tell(string message)
+            => Free.Of<Unit>(new Tell(message));   
+      }
    }
 
-   class GetRate
-   {
-      public string CcyPair { get; }
-      public GetRate(string ccyPair) => CcyPair = ccyPair;
-   }
+   namespace Http
+   {      
+      class Get
+      {
+         public string Url { get; }
+         public Get(string url) => Url = url;
+      }
 
-   static class Factory
-   {
-      public static Free<string> Ask()
-         => Free.Of<string>(new Ask());
-
-      public static Free<Unit> Tell(string message)
-         => Free.Of<Unit>(new Tell(message));   
-
-      public static Free<decimal> GetRate(string ccyPair)
-         => Free.Of<decimal>(new GetRate(ccyPair));   
+      static class Factory
+      {
+         public static Free<string> Get(string url)
+            => Free.Of<string>(new Get(url));
+      }
    }
 }
 
 public static class FreeProgram
 {
    public static void Run() =>
-      MainF.Run(cmd =>
+      MainF.Run(Interpreter);
+
+   public static Func<object, object> Interpreter => cmd =>
+   {
+      switch (cmd)
       {
-         switch (cmd)
-         {
-            case Ask _:
-               return ReadLine().ToUpper();
-            
-            case Tell tell:
-               WriteLine(tell.Message);
-               return Unit();
+         case Dsl.StdOut.Ask _:
+            return ReadLine().ToUpper();
+         
+         case Dsl.StdOut.Tell tell:
+            WriteLine(tell.Message);
+            return Unit();
 
-            case GetRate getRate:
-               WriteLine("fetching rate...");
-               var uri = $"http://finance.yahoo.com/d/quotes.csv?f=l1&s={getRate.CcyPair}=X";
-               var request = new HttpClient().GetStringAsync(uri);
-               return decimal.Parse(request.Result.Trim());
+         case Dsl.Http.Get @get:
+            return new HttpClient().GetStringAsync(@get.Url).Result.Trim();
 
-            default: 
-               throw new Exception("Invalid command");
-         }
-      });
+         default: 
+            throw new Exception("Invalid command");
+      }
+   };
 
    public static Free<Unit> MainF =>
       from _  in Tell("Enter a currency pair like 'EURUSD', or 'q' to quit")
@@ -78,10 +86,12 @@ public static class FreeProgram
          Free.Return((cache[ccyPair], cache));
        
       Free<(decimal Rate, Rates NewState)> retrieveRemotely(string ccyPair) =>
-         from rate in GetRate(ccyPair)
+         from _ in Tell("fetching rate...")
+         from s in Get($"http://finance.yahoo.com/d/quotes.csv?f=l1&s={ccyPair}=X")
+         let rate = decimal.Parse(s)
          select (rate, cache.Add(ccyPair, rate));
 
-      Free<Unit> notDone(string ccyPair) =>
+      Free<Unit> process(string ccyPair) =>
          from t in cache.ContainsKey(ccyPair)
                    ? retrieveLocally(ccyPair)
                    : retrieveRemotely(ccyPair) 
@@ -93,8 +103,7 @@ public static class FreeProgram
          from input in Ask()
          from _ in (input == "Q")
             ? done
-            : notDone(input)
+            : process(input)
          select _;
    }
 }
-

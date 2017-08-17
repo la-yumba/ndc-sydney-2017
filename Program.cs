@@ -4,7 +4,12 @@ using System.Collections.Generic;
 using System.IO;
 using LaYumba.Functional;
 
+using System.Threading.Tasks;
+
 using System.Reflection;
+
+using static Dsl.StdOut.Factory;
+using Unit = System.ValueTuple;
 
 public static partial class Program
 {
@@ -16,6 +21,8 @@ public static partial class Program
          ["stateful"] = CurrencyLookup.Stateful,
          ["fold"] = CurrencyLookup.Fold,
          ["free"] = FreeProgram.Run,
+         ["recur"] = Recur,
+         ["recurFree"] = RecurFree,
       };
 
       if (args.Length > 0)
